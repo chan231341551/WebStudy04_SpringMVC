@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.buyer.dao.BuyerDAO">
+	
+<sql id="searchFrag">
+	<where>
+		<if test="simpleCondition neq null and @org.apache.commons.lang3.StringUtils@isNotBlank(simpleCondition.searchWord)">
+			<choose>
+				<when test="simpleCondition.searchType eq 'name'">
+					INSTR(BUYER_NAME, #{simpleCondition.searchWord}) > 0
+				</when>
+				<when test="simpleCondition.searchType eq 'address'">
+					INSTR(BUYER_ADD1, #{simpleCondition.searchWord}) > 0
+				</when>
+				<otherwise>INSTR(BUYER_NAME, #{simpleCondition.searchWord}) >0
+							OR
+						   INSTR(BUYER_ADD1, #{simpleCondition.searchWord}) > 0 
+				</otherwise>
+			</choose>
+		</if>
+	</where>
+</sql>
+	
+	
+	<resultMap type="BuyerVO" id="buyerMap" autoMapping="true">
+	<id property="buyerId" column="BUYER_ID"/>
+		<association property="prodList"	javaType="ProdVO">
+			<result property="" column="PROD_COUNTFROM"/>
+		</association>
+	</resultMap> 
+	<select id="selectTotalRecord" resultType="int" parameterType="PagingVO">
+		SELECT COUNT(*)
+		FROM BUYER
+	</select>
+	<select id="selectBuyerList" resultType="BuyerVO" parameterType="PagingVO">
+		WITH BUYERVIEW AS (
+		    SELECT 
+		        BUYER_ID, 
+		        BUYER_NAME, 
+		        LPROD_NM, 
+		        BUYER_ADD1, 
+		        BUYER_COMTEL, 
+		        BUYER_MAIL, 
+		        (
+		            SELECT COUNT(*) 
+		            FROM PROD 
+		            WHERE PROD_BUYER = BUYER_ID
+		        ) PROD_COUNT 
+		    FROM BUYER INNER JOIN LPROD ON (BUYER_LGU = LPROD_GU) 
+		    <include refid="searchFrag"></include>
+		    ORDER BY BUYER.ROWID DESC), 
+	    BUYERROWS AS (
+	        SELECT 
+	            BUYERVIEW.*, 
+	            ROWNUM RNUM 
+	        FROM BUYERVIEW
+		)
+	    SELECT *
+	    FROM BUYERROWS
+	    WHERE RNUM BETWEEN #{startRow} AND #{endRow} 
+	</select>
+	
+</mapper>
